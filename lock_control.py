@@ -6,6 +6,8 @@ import os
 import sys
 import RPi.GPIO as GPIO
 
+# Define 
+
 # Define active
 active = 0
 
@@ -19,14 +21,14 @@ delay = 0.1
 storage = []
 
 # Define voltage and time tolerance
-volt_tol = 0.05
+volt_tol = 0.01
 time_tol = 0.5
 
 # Define last reading storage
 last_val = 0
 
-# Define direction var 0 is left, 1 is right
-direction = 0
+# Define direction var 0 is left, 1 is right, 2 is none
+direction = 2
 
 # Define variable to track active: 0 inactive, 1 active
 stop = 0
@@ -114,26 +116,33 @@ try:
 		if(active == 1):
 			temp = ConvertVolts(GetData(0),2)
 			if (temp > last_val + volt_tol):
-				if (direction == 1):
-					storage.append([direction,timer-delay])
+				if (direction == 1 and timer > 2 * delay):
+					storage.append([direction,timer])
 					timer = 0
+					print('left save, timer reset')
 				direction = 0
 				active_timer = 0
 				print('going left')
 
 			elif (temp < last_val - volt_tol):
-				if  (direction == 0):
-					storage.append([direction,timer-delay])
+				if  (direction == 0 and time > 2 * delay):
+					storage.append([direction,timer])
 					timer = 0
+					print('right save, timer reset')
 				direction = 1
 				active_timer = 0
 				print('going right')
 
 			else:
-				timer-= delay
-				active_timer -= delay
+				if (direction != 2 and timer > 2 * delay):
+					storage.append([direction, timer])
+					timer = 0
+					print('NM save, timer reset')
+				direction = 2
+				timer -= delay
 				total_timer -= delay
-				if(active_timer >= 2):
+				print('NM')
+				if (active_timer >= 2):
 					active = 0
 					print('not moving')
 					Compare(storage)
