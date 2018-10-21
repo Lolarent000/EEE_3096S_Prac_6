@@ -6,6 +6,9 @@ import os
 import sys
 import RPi.GPIO as GPIO
 
+# Define active
+active = 0
+
 # Define sensor channels
 channel = 0
 
@@ -29,6 +32,7 @@ direction = 0
 stop = 0
 
 # Define mode var, 0 is secure 1 is unsecure
+mode = 0
 
 # Define Timer Variable in sec
 timer = 0
@@ -45,10 +49,10 @@ lock_pin=22
 unlock_pin=23
 
 # Setup pins
-GPIO.setup(button_pin, GPIO.IN, pull_up_pull_down=GPIO.PUD_UP)
-GPIO.setup(mode_btn_pin, GPIO.IN, pull_up_pull_down=GPIO.PUD_UP)
+GPIO.setup(button_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(mode_btn_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(lock_pin, GPIO.OUT)
-GPIO.setup(stop_pin, GPIO.OUT)
+GPIO.setup(unlock_pin, GPIO.OUT)
 
 # Open SPI bus
 spi = spidev.SpiDev() # create spi object
@@ -70,25 +74,34 @@ def ConvertVolts(data,places):
 	return volts
 
 #Function compares the stored data to the Key
-def Conpare(input):
+def Compare(input):
 	print('OUTPUT\n')
-	for entry in storage:
+	for entry in input:
 		print('{} : :{}'.format(entry[0], entry[1]))
 
 # Function handles the button
 def ActiveButton(channel):
+	global active
+	global active_timer
+	global total_timer
+	global timer
+	global storage
+	global last_val
 	if(active == 0):
 		active = 1
+		timer = 0
 		active_timer = 0
 		total_timer = 0
 		storage = []
 		last_val = ConvertVolts(GetData(0),2)
+		print('now active')
 	else:
 		storage.append([dir,timer-delay])
 		active = 0
-		#IMPLEMENT Compare(storage)
+		Compare(storage)
 
 def ChangeMode(channel):
+	global mode 
 	mode = (mode + 1) % 2
 	print('mode is now: {}'.format(mode))
 
@@ -101,21 +114,29 @@ try:
 		if(active == 1):
 			temp = ConvertVolts(GetData(0),2)
 			if (temp > last_val + volt_tol):
-				if (direction = 1):
+				if (direction == 1):
 					storage.append([direction,timer-delay])
 					timer = 0
 				direction = 0
 				active_timer = 0
+				print('going left')
 
-			else if (temp < last_val = volt_tol):
-				if  (direction = 0):
+			elif (temp < last_val - volt_tol):
+				if  (direction == 0):
 					storage.append([direction,timer-delay])
 					timer = 0
 				direction = 1
 				active_timer = 0
+				print('going right')
+
 			else:
+				timer-= delay
+				active_timer -= delay
+				total_timer -= delay
 				if(active_timer >= 2):
 					active = 0
+					print('not moving')
+					Compare(storage)
 
 			last_val = temp
 
