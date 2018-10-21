@@ -6,7 +6,8 @@ import os
 import sys
 import RPi.GPIO as GPIO
 
-# Define 
+# Define key
+key = [[1,3],[0,2],[1,1]] #right 3 sec, left 2 sec, right 1 sec
 
 # Define active
 active = 0
@@ -75,11 +76,43 @@ def ConvertVolts(data,places):
 	volts = round(volts,places)
 	return volts
 
-#Function compares the stored data to the Key
-def Compare(input):
-	print('OUTPUT\n')
-	for entry in input:
-		print('{} : :{}'.format(entry[0], entry[1]))
+# Define a sorting and removing direction
+def Sort(array):
+	temp = []
+	for item in array:
+		temp.append(item[1])
+	temp.sort() 
+	return temp
+
+# Function that tests against the key based on the mode
+def Test(input):
+	print(input)
+
+	valid = True
+
+	if(input == []):
+		print('Empty input')
+
+	elif(len(input) != len(key)):
+		print('Wrong number of inputs')
+
+	elif (mode == 0):
+		comp = key
+		for i in range(0,len(comp)):
+                	if not(comp[i][0] == input[i][0] and comp[i][1] <= input[i][1] + time_tol and comp[i][1] >= input[i][1] - time_tol):
+                                valid = False
+		if valid:
+			print('Unlocking')
+			# Unlock
+	elif (mode == 1):
+		comp = Sort(key)
+		temp = Sort(input)
+		for i in range(0,len(comp)):
+                	if not(comp[i] <= temp[i] + time_tol and comp[i] >= temp[i] - time_tol):
+                                valid = False
+		if valid:
+			print('Unlocking')
+			# Unlock
 
 # Function handles the button
 def ActiveButton(channel):
@@ -98,9 +131,10 @@ def ActiveButton(channel):
 		last_val = ConvertVolts(GetData(0),2)
 		print('now active')
 	else:
-		storage.append([dir,timer-delay])
+		if(direction != 2):
+			storage.append([direction,timer])
 		active = 0
-		Compare(storage)
+		Test(storage)
 
 def ChangeMode(channel):
 	global mode 
@@ -111,7 +145,9 @@ def ChangeMode(channel):
 GPIO.add_event_detect(button_pin, GPIO.FALLING, callback=ActiveButton, bouncetime=500)
 GPIO.add_event_detect(mode_btn_pin, GPIO.FALLING, callback=ChangeMode, bouncetime=500)
 
+
 try:
+	
 	while True:
 		if(active == 1):
 			temp = ConvertVolts(GetData(0),2)
@@ -122,7 +158,7 @@ try:
 					print('left save, timer reset')
 				direction = 0
 				active_timer = 0
-				print('going left')
+				print('{}	going left'.format(timer))
 
 			elif (temp < last_val - volt_tol):
 				if  (direction == 0 and time > 2 * delay):
@@ -131,7 +167,7 @@ try:
 					print('right save, timer reset')
 				direction = 1
 				active_timer = 0
-				print('going right')
+				print('{}	going right'.format(timer))
 
 			else:
 				if (direction != 2 and timer > 2 * delay):
@@ -141,11 +177,11 @@ try:
 				direction = 2
 				timer -= delay
 				total_timer -= delay
-				print('NM')
+				print('{}	NM'.format(timer))
 				if (active_timer >= 2):
 					active = 0
 					print('not moving')
-					Compare(storage)
+					Test(storage)
 
 			last_val = temp
 
